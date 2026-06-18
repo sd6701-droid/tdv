@@ -186,11 +186,13 @@ tdv/
 If you find this repo useful, please consider giving a star ⭐ and a citation 🙃. If you have any questions, feel free to post them on github issues, hugging face daily papers, or email me (ninaddaithankar@gmail.com).
 
 ```bibtex
-@article{daithankar2025tdv,
-  title={You Don't Need Strong Assumptions: Visual Representation Learning via Temporal Differences},
-  author={Daithankar, Ninad and Gladstone, Alexi and LeCun, Yann and Ji, Heng},
-  journal={arXiv preprint arXiv:XXXX.XXXXX},
-  year={2025},
-  url={https://temporal-difference-vision.github.io}
+@misc{daithankar2026dontneedstrongassumptions,
+      title={You Don't Need Strong Assumptions: Visual Representation Learning via Temporal Differences},
+      author={Ninad Daithankar and Alexi Gladstone and Yann LeCun and Heng Ji},
+      year={2026},
+      eprint={2606.15956},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2606.15956},
 }
 ```
