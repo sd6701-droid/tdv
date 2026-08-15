@@ -3,8 +3,8 @@
 #SBATCH --gres=gpu:2
 #SBATCH --constraint=h100
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=48
+#SBATCH --ntasks-per-node=2
+#SBATCH --cpus-per-task=24
 #SBATCH --mem=480G
 #SBATCH --time=47:59:59
 #SBATCH --account=torch_pr_230_tandon_priority
@@ -128,4 +128,6 @@ ARGS=(
     # --resume_training_ckpt "logs/checkpoints/${RUN_NAME}_<datetime>_/last.ckpt"
 )
 
-python train_model.py "${ARGS[@]}"
+# One srun task per GPU — Lightning's SLURM detection requires ntasks == devices.
+# Slurm >= 22.05 does not propagate --cpus-per-task from sbatch to srun automatically.
+srun --cpus-per-task=${SLURM_CPUS_PER_TASK} python train_model.py "${ARGS[@]}"
