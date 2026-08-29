@@ -8,12 +8,12 @@
 #SBATCH --mem=480G
 #SBATCH --time=47:59:59
 #SBATCH --account=torch_pr_230_tandon_priority
-#SBATCH --job-name=tdv_base_ssv2_repro
-#SBATCH --output=/scratch/sd6701/tdv/logs/slurm/tdv_base_ssv2_repro_%j.log
+#SBATCH --job-name=tdv_small_ssv2_repro
+#SBATCH --output=/scratch/sd6701/tdv/logs/slurm/tdv_small_ssv2_repro_%j.log
 
 set -u
 
-export RUN_NAME="tdv_base_ssv2_repro"
+export RUN_NAME="tdv_small_ssv2_repro"
 
 # Activate the env explicitly — batch jobs do not inherit an activated env.
 source /scratch/sd6701/miniconda3/etc/profile.d/conda.sh
@@ -38,9 +38,9 @@ ARGS=(
     --model_name "tdv"
     --run_name ${RUN_NAME}
 
-    # Backbone — ViT-B/14 ("small" for the ViT-S run)
+    # Backbone — ViT-S/14 ("base" for the ViT-B run)
     --backbone_type "dinov2"
-    --vit_backbone_size "base"
+    --vit_backbone_size "small"
     --use_dino_head
     --context_length 16
     --time_between_frames 0.25
@@ -52,7 +52,7 @@ ARGS=(
     --ema_momentum 0.99
 
     # Difference encoder
-    --change_encoder_type "dinoViT_xattn_base14"
+    --change_encoder_type "dinoViT_xattn_small14"
     --difference_encoder_lr_multiplier 3e-2
     --ignore_prefix_tokens_in_condition
 
