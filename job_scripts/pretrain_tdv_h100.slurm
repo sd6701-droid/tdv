@@ -26,11 +26,18 @@ mkdir -p logs/slurm
 
 # ---------------------------------------------------------------------------
 # Paper hyperparameters (TDV column), step-based:
-# SSv2 ~169k clips; effective batch = 4 clips/GPU x 2 GPUs x 2 accum
-# = 16 clips = 256 images (16-frame clips).
-#   1 epoch ~ 10,550 steps; 20 epochs ~ 211,000 steps; 0.5-epoch warmup ~ 5,300.
+# SSv2 ~169k clips; effective batch = 16 clips/GPU x 2 GPUs x 1 accum
+# = 32 clips = 512 images (16-frame clips) -- 2x Table C.2's 256.
+#   1 epoch ~ 5,279 steps; 20 epochs ~ 105,580 steps; 0.5-epoch warmup ~ 2,640.
 # Online eval: linear probe on SSv2 (ImageNet knn needs the gated HF dataset).
-# val_check_interval 0.25 -> validation + checkpoint save 4x per epoch.
+# val_check_interval 1.0 -> validation + checkpoint save once per epoch.
+# DEVIATION FROM PAPER: batch is 512 images, not Table C.2's 256, traded for
+# GPU utilisation (256 images/forward). LR scaled 1e-4 -> 2e-4 to match.
+# To revert: batch_size_per_device 8, peak_learning_rate 1e-4,
+# max_steps/max_scheduling_steps 211000, warm_up_steps 5300.
+# Online probe DISABLED (it idled the GPUs and tripped the cluster's 60%
+# utilisation watchdog); run it offline via job_scripts/eval/linear_probe_h100.slurm.
+# The probe_eval_* args below are inert until run_online_evaluations is set back to "probe".
 # ---------------------------------------------------------------------------
 ARGS=(
     # Run identity
@@ -84,29 +91,30 @@ ARGS=(
     --is_slurm_run
 
     # Optimiser
-    --batch_size_per_device 4
-    --accumulate_grad_batches 2
+    --batch_size_per_device 16
+    --accumulate_grad_batches 1
     --gradient_clip_val 1.0
     --epochs 20
-    --max_steps 211000
-    --peak_learning_rate 1e-4
+    --max_steps 105580
+    --peak_learning_rate 2e-4
     --min_lr_scale 100000
-    --max_scheduling_steps 211000
-    --warm_up_steps 5300
+    --max_scheduling_steps 105580
+    --warm_up_steps 2640
     --weight_decay 0.01
 
     # Dataset
     --dataset_name "aggr"
     --aggr_datasets_list "ssv2"
     --aggr_dataset_dirs "/scratch/sd6701/datasets/ssv2"
-    --num_workers 14
+    --num_workers 22
     --image_dim 224 224
 
     # Validation / checkpointing cadence (checkpoint saved at every validation)
-    --val_check_interval 0.25
+    --val_check_interval 1.0
 
     # Online evaluation — linear probe on SSv2
-    --run_online_evaluations "probe"
+    --run_online_evaluations "none"
+    --probe_eval_bs 384
     --probe_eval_dataset "ssv2"
     --probe_eval_data_dir "/scratch/sd6701/datasets/ssv2"
     --num_classes 174

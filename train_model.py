@@ -173,20 +173,21 @@ def main(args):
 		eval = eval.strip()
 
 		if "knn" == eval:
-			callback = KNNEvalCallback(args)
+			callbacks.append(KNNEvalCallback(args))
 			print("KNN Online Eval Callback is set up")
 
 		elif "probe" == eval:
 			datamodule = ProbeDataModule(args)
-			callback = ProbeEvalCallback(args, datamodule, probe_type=args.probe_eval_type)
+			callbacks.append(ProbeEvalCallback(args, datamodule, probe_type=args.probe_eval_type))
 			print(f"{args.probe_eval_type} - Probe Eval Callback is set up")
 
 		elif "mot" == eval:
 			datamodule = MOT17DataModule(args)
-			callback = DeepSORTEvalCallback(args, datamodule)
+			callbacks.append(DeepSORTEvalCallback(args, datamodule))
 			print(f"MOT (DeepSORT) Eval Callback is set up")
 
-		callbacks.append(callback)
+		elif eval not in ("", "none"):
+			raise ValueError(f"Unknown online evaluation '{eval}'. Expected knn, probe, mot, or none.")
 
 
 	# -- print non-trainable params
