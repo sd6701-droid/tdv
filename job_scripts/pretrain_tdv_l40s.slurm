@@ -1,19 +1,19 @@
 #!/bin/bash
 ### SLURM ###
 #SBATCH --gres=gpu:2
-#SBATCH --constraint=h100
+#SBATCH --constraint=l40s
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=2
-#SBATCH --cpus-per-task=24
-#SBATCH --mem=480G
-#SBATCH --time=47:59:59
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=240G
+#SBATCH --time=04:00:00
 #SBATCH --account=torch_pr_230_tandon_priority
-#SBATCH --job-name=tdv_small_ssv2_repro
-#SBATCH --output=/scratch/sd6701/tdv/logs/slurm/tdv_small_ssv2_repro_%j.log
+#SBATCH --job-name=tdv_small_l40s_test
+#SBATCH --output=/scratch/sd6701/tdv/logs/slurm/tdv_small_l40s_test_%j.log
 
 set -u
 
-export RUN_NAME="tdv_small_ssv2_repro"
+export RUN_NAME="tdv_small_l40s_test"
 
 # Activate the env explicitly — batch jobs do not inherit an activated env.
 source /scratch/sd6701/miniconda3/etc/profile.d/conda.sh
@@ -28,20 +28,24 @@ cd "${REPO_ROOT}" || exit 1
 mkdir -p logs/slurm
 
 # ---------------------------------------------------------------------------
-# Paper hyperparameters (TDV column), step-based:
-# SSv2 ~169k clips; effective batch = 8 clips/GPU x 2 GPUs x 1 accum
-# = 16 clips = 256 images (16-frame clips) -- matches Table C.2.
-#   1 epoch ~ 10,557 steps; 20 epochs ~ 211,000 steps; 0.5-epoch warmup ~ 5,300.
-# Online eval: linear probe on SSv2 (ImageNet knn needs the gated HF dataset).
-# val_check_interval 1.0 -> validation + checkpoint save once per epoch.
+# L40S SMOKE TEST -- validates the pipeline on a smaller/cheaper GPU before
+# committing an H100 allocation. Same recipe as pretrain_tdv_h100.slurm.
+#
+# L40S has 48GB VRAM (vs 80GB on H100), so batch_size_per_device drops 8 -> 4
+# with accumulate_grad_batches 2. Effective batch is UNCHANGED at
+# 4 clips/GPU x 2 GPUs x 2 accum = 16 clips = 256 images -- still Table C.2.
+#
 # MEMORY: batch_size_per_device is capped by the iBOT loss, which sends every
 # patch token through the 32768-prototype head:
 #   bs x 15 frames x 256 patches x 32768 x 4B (fp32 log_softmax)
-#   bs=16 -> 7.5 GiB per tensor x ~5 tensors = OOM on an 80GB H100.
-#   bs=8  -> 3.75 GiB per tensor. Do NOT raise this; use accumulation instead.
-# Online probe DISABLED (it idled the GPUs and tripped the cluster's 60%
-# utilisation watchdog); run it offline via job_scripts/eval/linear_probe_h100.slurm.
-# The probe_eval_* args below are inert until run_online_evaluations is set back to "probe".
+#   bs=4 -> 1.9 GiB per tensor, ~5 such tensors. bs=8 -> 3.75 GiB (likely OOM on 48GB).
+#
+# --limit_train_batches 200 makes this finish in minutes. Remove it (and raise
+# --time) to run for real. Online probe is disabled; run it via
+# job_scripts/eval/linear_probe_h100.slurm.
+#
+# VERIFY BEFORE SUBMITTING: --constraint, --cpus-per-task and --mem are guesses
+# for your L40S partition. Check with:  sinfo -o "%20N %10c %10m %25f %10G"
 # ---------------------------------------------------------------------------
 ARGS=(
     # Run identity
@@ -95,10 +99,13 @@ ARGS=(
     --is_slurm_run
 
     # Optimiser
-    --batch_size_per_device 8
-    --accumulate_grad_batches 1
+    --batch_size_per_device 4
+    --accumulate_grad_batches 2
     --gradient_clip_val 1.0
     --epochs 20
+    # SMOKE TEST: comment these two out for a real run
+    --limit_train_batches 200
+    --limit_val_batches 20
     --max_steps 211000
     --peak_learning_rate 1e-4
     --min_lr_scale 100000
@@ -110,7 +117,7 @@ ARGS=(
     --dataset_name "aggr"
     --aggr_datasets_list "ssv2"
     --aggr_dataset_dirs "/scratch/sd6701/datasets/ssv2"
-    --num_workers 22
+    --num_workers 14
     --image_dim 224 224
 
     # Validation / checkpointing cadence (checkpoint saved at every validation)
